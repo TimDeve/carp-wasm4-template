@@ -1,0 +1,85 @@
+(Project.config "title" "HelloW4")
+(Project.config "output-directory" "build")
+(Project.config "generate-only" true)
+
+(load "lib/wasm4.carp")
+
+(deftemplate init-globals (Fn [] ()) "void $NAME()" "inline $DECL { carp_init_globals(0, NULL); }")
+
+(relative-include "./build/guy.h")
+(deftemplate guy-width Int "const int $NAME = guyWidth" "")
+(deftemplate guy-height Int "const int $NAME = guyHeight" "")
+(deftemplate guy-flags Int "const int $NAME = guyFlags" "")
+(register guy (Ptr CChar) "guy")
+
+(defn-do log-to-debug-console []
+  (W4.trace "Hello from Carp!")
+  ; Tracef is a vararg macro
+  (W4.tracef* "Same as trace")
+  (W4.tracef* "Log 1 arg: %s" (cstr "Wow"))
+  (W4.tracef* "Log 2 args: %d and %s" 1 (cstr "second"))
+  (W4.tracef* "Log 3 args: %d, %s, 0x%x" 1 (cstr "second") 0x1337))
+
+(defn-do save-to-disk-and-retrieve []
+  (let [to-save 1337] (W4.diskw (Pointer.address &to-save)))
+  (let-do [from-disk 0]
+   (W4.diskr (Pointer.address &from-disk))
+   (W4.tracef* "Hello from disk: %d" from-disk)))
+
+(defn-do print-text []
+  (Pointer.unsafe-set W4.draw-colors 0x1203)
+  (W4.text "Hello Carp!" 30 10))
+
+(defn-do display-shapes []
+  (Pointer.set W4.draw-colors (Unsafe.coerce 0x0123))
+  (W4.line 0 0 160 160)
+  (W4.hline 100 40 10)
+  (W4.vline 100 40 30)
+  (W4.oval 50 20 10 10)
+  (W4.rect 40 100 90 40))
+
+(def sprite-x-pos (/ W4.screen-size 2))
+(def sprite-y-pos (/ W4.screen-size 2))
+(def sprite-going-right true)
+
+(defn-do control-sprite []
+  (when (Unsafe.coerce (bit-and (Pointer.to-value W4.gamepad1) W4.button-up))
+    (set! sprite-y-pos (dec sprite-y-pos)))
+  (when (Unsafe.coerce (bit-and (Pointer.to-value W4.gamepad1) W4.button-down))
+    (set! sprite-y-pos (inc sprite-y-pos)))
+  (when (Unsafe.coerce (bit-and (Pointer.to-value W4.gamepad1) W4.button-left))
+    (do
+      (set! sprite-going-right false)
+      (set! sprite-x-pos (dec sprite-x-pos))))
+  (when (Unsafe.coerce (bit-and (Pointer.to-value W4.gamepad1) W4.button-right))
+    (do
+      (set! sprite-going-right true)
+      (set! sprite-x-pos (inc sprite-x-pos))))
+  (Pointer.unsafe-set W4.draw-colors 0x4301)
+  (let [flags (if sprite-going-right
+                guy-flags
+                (bit-or guy-flags W4.blit-flip-x))]
+    (W4.blit guy sprite-x-pos sprite-y-pos guy-width guy-height flags)))
+
+(def previous-gamepad1 (Uint8.from-long 0l))
+
+(defn make-sound []
+  (let-do [gamepad (Pointer.to-value W4.gamepad1)
+           just-pressed (bit-and gamepad (bit-xor gamepad previous-gamepad1))]
+    (when (Unsafe.coerce (bit-and just-pressed W4.button-1))
+      (W4.tone 1000 10 100 0))
+    (when (Unsafe.coerce (bit-and just-pressed W4.button-2))
+      (W4.tone 500 5 50 W4.tone-noise))
+    (set! previous-gamepad1 @&gamepad)))
+
+(defn-do start []
+  (init-globals)
+  (log-to-debug-console)
+  (save-to-disk-and-retrieve))
+
+(defn-do update []
+  (print-text)
+  (display-shapes)
+  (control-sprite)
+  (make-sound))
+

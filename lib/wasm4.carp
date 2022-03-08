@@ -1,0 +1,151 @@
+(relative-include "wasm4.h")
+
+(load "./light-core.carp")
+
+(defmodule W4
+  ; ┌───────────────────────────────────────────────────────────────────────────┐
+  ; │                                                                           │
+  ; │ Platform Constants                                                        │
+  ; │                                                                           │
+  ; └───────────────────────────────────────────────────────────────────────────┘
+
+  (deftemplate screen-size Int "int $NAME = SCREEN_SIZE" "")
+
+  ; ┌───────────────────────────────────────────────────────────────────────────┐
+  ; │                                                                           │
+  ; │ Memory Addresses                                                          │
+  ; │                                                                           │
+  ; └───────────────────────────────────────────────────────────────────────────┘
+
+  (deftemplate palette (Ptr Uint32) "uint32_t* $NAME = PALETTE" "")
+  (deftemplate draw-colors (Ptr Uint16) "uint16_t* $NAME = DRAW_COLORS" "")
+  (deftemplate gamepad1 (Ptr Uint8) "const uint8_t* $NAME = GAMEPAD1" "")
+  (deftemplate gamepad2 (Ptr Uint8) "const uint8_t* $NAME = GAMEPAD2" "")
+  (deftemplate gamepad3 (Ptr Uint8) "const uint8_t* $NAME = GAMEPAD3" "")
+  (deftemplate gamepad4 (Ptr Uint8) "const uint8_t* $NAME = GAMEPAD4" "")
+  (deftemplate mouse-x (Ptr Int16) "const int16_t* $NAME = MOUSE_X" "")
+  (deftemplate mouse-y (Ptr Int16) "const int16_t* $NAME = MOUSE_Y" "")
+  (deftemplate mouse-buttons (Ptr Uint8) "const uint8_t* $NAME = MOUSE_BUTTONS" "")
+  (deftemplate system-flags (Ptr Uint8) "const uint8_t* $NAME = SYSTEM_FLAGS" "")
+  (deftemplate framebuffer (Ptr CChar) "const uint8_t* $NAME = FRAMEBUFFER" "")
+
+  (deftemplate button-1     Uint8 "uint8_t $NAME = BUTTON_1" "")
+  (deftemplate button-2     Uint8 "uint8_t $NAME = BUTTON_2" "")
+  (deftemplate button-left  Uint8 "uint8_t $NAME = BUTTON_LEFT" "")
+  (deftemplate button-right Uint8 "uint8_t $NAME = BUTTON_RIGHT" "")
+  (deftemplate button-up    Uint8 "uint8_t $NAME = BUTTON_UP" "")
+  (deftemplate button-down  Uint8 "uint8_t $NAME = BUTTON_DOWN" "")
+
+  (deftemplate mouse-left   Uint8 "uint8_t $NAME = MOUSE_LEFT" "")
+  (deftemplate mouse-right  Uint8 "uint8_t $NAME = MOUSE_RIGHT" "")
+  (deftemplate mouse-middle Uint8 "uint8_t $NAME = MOUSE_MIDDLE" "")
+
+  (deftemplate system-preserve-framebuffer Uint8 "uint8_t $NAME = SYSTEM_PRESERVE_FRAMEBUFFER" "")
+  (deftemplate system-hide-gamepad-overlay Uint8 "uint8_t $NAME = SYSTEM_HIDE_GAMEPAD_OVERLAY" "")
+
+  ; ┌───────────────────────────────────────────────────────────────────────────┐
+  ; │                                                                           │
+  ; │ Drawing Functions                                                         │
+  ; │                                                                           │
+  ; └───────────────────────────────────────────────────────────────────────────┘
+
+  (doc      blit "Copies pixels to the framebuffer.\n  Args: data, x, y, width, height, flags")
+  (register blit (Fn [(Ptr CChar) Int Int Int Int Int] ()) "blit")
+
+  (doc      blit-sub "Copies a subregion within a larger sprite atlas to the framebuffer.\n  Args: data, x, y, width, height, srcX, srcY, stride, flags")
+  (register blit-sub (Fn [(Ptr CChar) Int Int Int Int Int Int Int Int] ()) "blitSub")
+
+  (deftemplate blit-1bpp   Int "int $NAME = BLIT_1BPP" "")
+  (deftemplate blit-2bpp   Int "int $NAME = BLIT_2BPP" "")
+  (deftemplate blit-flip-x Int "int $NAME = BLIT_FLIP_X" "")
+  (deftemplate blit-flip-y Int "int $NAME = BLIT_FLIP_Y" "")
+  (deftemplate blit-rotate Int "int $NAME = BLIT_ROTATE" "")
+
+  (doc      line "Draws a line between two points.\n  Args: ax, ay, bx, by")
+  (register line (Fn [Int Int Int Int] ()) "line")
+
+  (doc      hline "Draws a horizontal line.\n  Args: x, y, length")
+  (register hline (Fn [Int Int Int] ()) "hline")
+
+  (doc      vline "Draws a vertical line.\n  Args: x, y, length")
+  (register vline (Fn [Int Int Int] ()) "vline")
+
+  (doc      oval "Draws an oval (or circle).\n  Args: x, y, width, height")
+  (register oval (Fn [Int Int Int Int] ()) "oval")
+
+  (doc      rect "Draws a rectangle.\n  Args: x, y, width, height")
+  (register rect (Fn [Int Int Int Int] ()) "rect")
+
+  (doc         text "Draws text using the built-in system font.\n  Args: string, x, y")
+  (deftemplate text (Fn [(Ref String) Int Int] ())
+                    "void $NAME(String *str, int x, int y)"
+                    "inline $DECL { text(*str, x, y); }")
+  ; ┌───────────────────────────────────────────────────────────────────────────┐
+  ; │                                                                           │
+  ; │ Sound Functions                                                           │
+  ; │                                                                           │
+  ; └───────────────────────────────────────────────────────────────────────────┘
+
+  (doc      tone "Plays a sound tone.\n  Args: frequency, duration, volume, flags")
+  (register tone (Fn [Int Int Int Int] ()) "tone")
+
+  (deftemplate tone-pulse1   Int "int $NAME = TONE_PULSE1" "")
+  (deftemplate tone-pulse2   Int "int $NAME = TONE_PULSE2" "")
+  (deftemplate tone-triangle Int "int $NAME = TONE_TRIANGLE" "")
+  (deftemplate tone-noise    Int "int $NAME = TONE_NOISE" "")
+  (deftemplate tone-mode1    Int "int $NAME = TONE_MODE1" "")
+  (deftemplate tone-mode2    Int "int $NAME = TONE_MODE2" "")
+  (deftemplate tone-mode3    Int "int $NAME = TONE_MODE3" "")
+  (deftemplate tone-mode4    Int "int $NAME = TONE_MODE4" "")
+
+  ; ┌───────────────────────────────────────────────────────────────────────────┐
+  ; │                                                                           │
+  ; │ Storage Functions                                                         │
+  ; │                                                                           │
+  ; └───────────────────────────────────────────────────────────────────────────┘
+
+  (doc         diskr "Reads up to `size` bytes from persistent storage into the pointer `dest`.\n Args: destination, size")
+  (deftemplate diskr (Fn [(Ptr a)] ())
+                    "void $NAME($a *ptr)"
+                    "inline $DECL { diskr(ptr, sizeof($a)); }")
+
+  (doc         diskw "Writes up to `size` bytes from the pointer `src` into persistent storage..\n Args: destination, size")
+  (deftemplate diskw (Fn [(Ptr a)] ())
+                    "void $NAME($a *ptr)"
+                    "inline $DECL { diskw(ptr, sizeof($a)); }")
+
+  ; ┌───────────────────────────────────────────────────────────────────────────┐
+  ; │                                                                           │
+  ; │ Logging Functions                                                         │
+  ; │                                                                           │
+  ; └───────────────────────────────────────────────────────────────────────────┘
+
+  (doc         trace "Prints a message to the debug console.\n Args: string")
+  (deftemplate trace (Fn [(Ref String)] ())
+                    "void $NAME(String *str)"
+                    "inline $DECL { trace(*str); }")
+
+  (doc      tracef* "Formats and prints a message to the debug console, strings to be formatted need to be (Ptr CChar).\n  Args: format-string, ...args")
+  (defmacro tracef* [template :rest args]
+    (let [args-num (Dynamic.length args)
+          f        (Symbol.from (String.concat ["tracef" (str args-num)]))
+          sym      (Symbol.prefix 'W4 f)]
+      (cond (= args-num 0) (list 'W4.trace template)
+            (< args-num 4) (cons sym (cons template args))
+            (macro-error "tracef* takes a maximum of 3 arguments"))))
+
+  (doc         tracef1 "Formats and prints a message to the debug console, strings to be formatted need to be (Ptr CChar).\n  Args: format-string, arg")
+  (deftemplate tracef1 (Fn [(Ref String) a] ())
+                    "void $NAME(String *str, $a a)"
+                    "inline $DECL { tracef(*str, a); }")
+
+  (doc         tracef2 "Formats and prints a message to the debug console, strings to be formatted need to be (Ptr CChar).\n  Args: format-string, arg1, arg2")
+  (deftemplate tracef2 (Fn [(Ref String) a b] ())
+                    "void $NAME(String *str, $a a, $b b)"
+                    "inline $DECL { tracef(*str, a, b); }")
+
+  (doc         tracef3 "Formats and prints a message to the debug console, strings to be formatted need to be (Ptr CChar).\n  Args: format-string, arg1, arg2, arg3")
+  (deftemplate tracef3 (Fn [(Ref String) a b c] ())
+                    "void $NAME(String *str, $a a, $b b, $c c)"
+                    "inline $DECL { tracef(*str, a, b, c); }"))
+
